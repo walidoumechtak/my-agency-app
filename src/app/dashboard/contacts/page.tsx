@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Users, Mail, Phone, AlertCircle, Loader2 } from "lucide-react"
@@ -12,16 +12,17 @@ export default function ContactsPage() {
   const [blocked, setBlocked] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const tableBodyRef = useRef<HTMLTableSectionElement>(null)
+  const [page, setPage] = useState(1)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    loadContacts()
+    loadContacts(1)
   }, [])
 
-  const loadContacts = async () => {
+  const loadContacts = async (pageNumber: number) => {
     try {
-      const res = await fetch("/api/contacts")
+      const res = await fetch(`/api/contacts?page=${pageNumber}`)
       const data = await res.json()
 
       if (data.upgradeNeeded) {
@@ -30,7 +31,12 @@ export default function ContactsPage() {
         return
       }
 
-      setContacts(data.contacts || [])
+      if (pageNumber === 1) {
+        setContacts(data.contacts || [])
+      } else {
+        setContacts((prev) => [...prev, ...(data.contacts || [])])
+      }
+
       setLoading(false)
     } catch (error) {
       console.error("Failed to load contacts:", error)
@@ -39,24 +45,24 @@ export default function ContactsPage() {
   }
 
   const handleScroll = useCallback(async () => {
-    if (!scrollContainerRef.current) return
+    if (!scrollRef.current || blocked || loadingMore) return
 
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+    const nearBottom = scrollHeight - scrollTop - clientHeight < 80
 
-    if (isNearBottom && !loadingMore && !blocked && contacts.length < 50) {
+    if (nearBottom) {
       setLoadingMore(true)
+      const nextPage = page + 1
+
       try {
-        const res = await fetch("/api/contacts")
+        const res = await fetch(`/api/contacts?page=${nextPage}`)
         const data = await res.json()
 
         if (data.upgradeNeeded) {
           setBlocked(true)
-        } else if (data.contacts) {
-          setContacts((prev) => {
-            const newContacts = [...prev, ...data.contacts]
-            return newContacts.slice(0, 50)
-          })
+        } else {
+          setContacts((prev) => [...prev, ...(data.contacts || [])])
+          setPage(nextPage)
         }
       } catch (error) {
         console.error("Failed to load more contacts:", error)
@@ -64,7 +70,7 @@ export default function ContactsPage() {
         setLoadingMore(false)
       }
     }
-  }, [contacts.length, loadingMore, blocked])
+  }, [page, blocked, loadingMore])
 
   if (loading) {
     return (
@@ -77,26 +83,14 @@ export default function ContactsPage() {
   if (blocked && contacts.length === 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Users className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Contacts</h1>
-              <p className="text-muted-foreground text-sm mt-1">Manage and view all contacts in your system</p>
-            </div>
-          </div>
-        </div>
-
         <Card className="border border-destructive bg-destructive/5">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
-              <AlertCircle className="w-8 h-8 text-destructive flex-shrink-0" />
+              <AlertCircle className="w-8 h-8 text-destructive" />
               <div>
-                <h3 className="font-semibold text-foreground">Daily Limit Reached</h3>
+                <h3 className="font-semibold">Daily Limit Reached</h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  You reached your daily limit of 50 contacts. Please upgrade to continue accessing more contacts.
+                  You reached the daily limit of 50 contacts. Upgrade to access more.
                 </p>
               </div>
             </div>
@@ -107,303 +101,129 @@ export default function ContactsPage() {
   }
 
   return (
-    <div className="space-y-6 flex flex-col">
-      {/* Page Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          {/* <div className="p-2 bg-primary/10 rounded-lg">
-            <Users className="w-6 h-6 text-primary" />
-          </div> */}
-          {/* <div> */}
-            {/* <h1 className="text-3xl font-bold text-foreground">Contacts</h1> */}
-            <p className="text-muted-foreground text-sm mt-1">Manage and view all contacts in your system</p>
-          {/* </div> */}
-        </div>
-      </div>
+    <div className="space-y-6">
+      <p className="text-muted-foreground text-sm mt-1">
+        Manage and view all contacts in your system
+      </p>
 
-      {/* Table Card with Fixed Height and Internal Scroll */}
-      <Card className="border border-border flex-1 flex flex-col overflow-hidden">
-        {/* <CardHeader className="pb-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Contact Directory</CardTitle>
-              <CardDescription>
-                {contacts.length} {contacts.length === 1 ? "contact" : "contacts"}
-                {blocked ? " - Daily limit reached" : ""}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader> */}
-        <CardContent className="flex-1 overflow-hidden flex flex-col">
-          {contacts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Users className="w-12 h-12 text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground font-medium">No contacts found</p>
-              <p className="text-sm text-muted-foreground mt-1">Create your first contact to get started</p>
-            </div>
-          ) : (
-            <>
-              <div
-                ref={scrollContainerRef}
-                onScroll={handleScroll}
-                className="flex-1 overflow-y-auto border border-border rounded-lg"
-              >
+      <Card className="border">
+        <CardContent className="pt-0">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="h-96 overflow-y-auto border rounded-lg"
+          >
+            {contacts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Users className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground font-medium">No contacts found</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Create your first contact to get started
+                </p>
+              </div>
+            ) : (
+              <>
                 <Table>
                   <TableHeader className="sticky top-0 bg-muted/50 z-10">
-                    <TableRow className="border-b border-border hover:bg-transparent">
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-28">First Name</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Last Name</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-32">Email</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-24">Phone</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Title</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-24">Email Type</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Department</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-32">Agency</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Created</TableHead>
-                      <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Updated</TableHead>
+                    <TableRow className="border-b hover:bg-transparent">
+                      <TableHead className="px-4 py-3 w-28">First Name</TableHead>
+                      <TableHead className="px-4 py-3 w-28">Last Name</TableHead>
+                      <TableHead className="px-4 py-3 w-32">Email</TableHead>
+                      <TableHead className="px-4 py-3 w-24">Phone</TableHead>
+                      <TableHead className="px-4 py-3 w-28">Title</TableHead>
+                      <TableHead className="px-4 py-3 w-24">Email Type</TableHead>
+                      <TableHead className="px-4 py-3 w-28">Department</TableHead>
+                      <TableHead className="px-4 py-3 w-32">Agency</TableHead>
+                      <TableHead className="px-4 py-3 w-28">Created</TableHead>
+                      <TableHead className="px-4 py-3 w-28">Updated</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody ref={tableBodyRef}>
-                    {contacts.map((contact) => (
-                      <TableRow key={contact.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                        <TableCell className="px-4 py-3 font-medium text-foreground">
-                          {contact.first_name || "—"}
+
+                  <TableBody>
+                    {contacts.map((c) => (
+                      <TableRow
+                        key={c.id}
+                        className="border-b hover:bg-muted/30 transition"
+                      >
+                        <TableCell className="px-4 py-3 font-medium">
+                          {c.first_name || "—"}
                         </TableCell>
-                        <TableCell className="px-4 py-3 font-medium text-foreground">
-                          {contact.last_name || "—"}
+                        <TableCell className="px-4 py-3 font-medium">
+                          {c.last_name || "—"}
                         </TableCell>
+
                         <TableCell className="px-4 py-3 text-sm">
-                          {contact.email ? (
-                            <a
-                              href={`mailto:${contact.email}`}
-                              className="text-primary hover:underline flex items-center gap-2"
-                            >
-                              <Mail className="w-4 h-4" />
-                              {contact.email}
+                          {c.email ? (
+                            <a className="flex items-center gap-2 text-primary" href={`mailto:${c.email}`}>
+                              <Mail className="w-4 h-4" /> {c.email}
                             </a>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            "—"
                           )}
                         </TableCell>
+
                         <TableCell className="px-4 py-3 text-sm">
-                          {contact.phone ? (
-                            <a
-                              href={`tel:${contact.phone}`}
-                              className="text-primary hover:underline flex items-center gap-2"
-                            >
-                              <Phone className="w-4 h-4" />
-                              {contact.phone}
+                          {c.phone ? (
+                            <a className="flex items-center gap-2 text-primary" href={`tel:${c.phone}`}>
+                              <Phone className="w-4 h-4" /> {c.phone}
                             </a>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            "—"
                           )}
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-foreground">{contact.title || "—"}</TableCell>
+
+                        <TableCell className="px-4 py-3 text-sm">{c.title || "—"}</TableCell>
+
                         <TableCell className="px-4 py-3">
-                          {contact.email_type ? (
-                            <Badge variant="secondary" className="text-xs">
-                              {contact.email_type}
-                            </Badge>
+                          {c.email_type ? (
+                            <Badge variant="secondary" className="text-xs">{c.email_type}</Badge>
                           ) : (
-                            <span className="text-sm text-muted-foreground">—</span>
+                            "—"
                           )}
                         </TableCell>
-                        <TableCell className="px-4 py-3 text-sm text-foreground">{contact.department || "—"}</TableCell>
+
+                        <TableCell className="px-4 py-3 text-sm">{c.department || "—"}</TableCell>
+
                         <TableCell className="px-4 py-3">
-                          {contact.agency ? (
-                            <Badge variant="outline" className="text-xs">
-                              {contact.agency.name || "—"}
-                            </Badge>
+                          {c.agency ? (
+                            <Badge variant="outline" className="text-xs">{c.agency.name}</Badge>
                           ) : (
-                            <span className="text-sm text-muted-foreground">—</span>
+                            "—"
                           )}
                         </TableCell>
+
                         <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                          {contact.created_at ? formatDate(contact.created_at) : "—"}
+                          {c.created_at ? formatDate(c.created_at) : "—"}
                         </TableCell>
+
                         <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                          {contact.updated_at ? formatDate(contact.updated_at) : "—"}
+                          {c.updated_at ? formatDate(c.updated_at) : "—"}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </div>
 
-              {loadingMore && (
-                <div className="flex items-center justify-center py-4 border-t border-border flex-shrink-0">
-                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                  <span className="ml-2 text-sm text-muted-foreground">Loading more contacts...</span>
-                </div>
-              )}
+                {loadingMore && (
+                  <div className="flex items-center justify-center py-4 border-t">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    <span className="ml-2 text-sm text-muted-foreground">Loading more…</span>
+                  </div>
+                )}
 
-              {blocked && (
-                <Card className="mt-4 border border-destructive bg-destructive/5 flex-shrink-0">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-4">
-                      <AlertCircle className="w-8 h-8 text-destructive flex-shrink-0" />
-                      <div>
-                        <h3 className="font-semibold text-foreground">Daily Limit Reached</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          You reached your daily limit of 50 contacts. Please upgrade to continue accessing more
-                          contacts.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          )}
+                {blocked && (
+                  <div className="p-4 border-t bg-destructive/10 flex gap-3 items-center">
+                    <AlertCircle className="w-6 h-6 text-destructive" />
+                    <p className="text-sm text-destructive">
+                        You have reached your daily limit of 50 contacts. Please upgrade your plan to view more.
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
   )
 }
-
-
-
-
-// import { prisma } from "../../../lib/prisma"
-// import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-// import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table"
-// import { Badge } from "@/components/ui/badge"
-// import { Users, Mail, Phone } from "lucide-react"
-// import { formatDate } from "../../../lib/utils"
-
-// export default async function ContactsPage() {
-//   const contacts = await prisma.contact.findMany({
-//     include: {
-//       agency: true,
-//     },
-//     orderBy: {
-//       created_at: "desc",
-//     },
-//   })
-
-//   return (
-//     <div className="space-y-6">
-//       {/* Page Header */}
-//       <div>
-//         <div className="flex items-center gap-3 mb-2">
-//           <div className="p-2 bg-primary/10 rounded-lg">
-//             <Users className="w-6 h-6 text-primary" />
-//           </div>
-//           <div>
-//             <h1 className="text-3xl font-bold text-foreground">Contacts</h1>
-//             <p className="text-muted-foreground text-sm mt-1">Manage and view all contacts in your system</p>
-//           </div>
-//         </div>
-//       </div>
-
-//       {/* Table Card with Fixed Height and Internal Scroll */}
-//       <Card className="border border-border">
-//         <CardHeader className="pb-4">
-//           <div className="flex items-center justify-between">
-//             <div>
-//               <CardTitle>Contact Directory</CardTitle>
-//               <CardDescription>
-//                 {contacts.length} {contacts.length === 1 ? "contact" : "contacts"} total
-//               </CardDescription>
-//             </div>
-//           </div>
-//         </CardHeader>
-//         <CardContent>
-//           {contacts.length === 0 ? (
-//             <div className="flex flex-col items-center justify-center py-12 text-center">
-//               <Users className="w-12 h-12 text-muted-foreground/50 mb-4" />
-//               <p className="text-muted-foreground font-medium">No contacts found</p>
-//               <p className="text-sm text-muted-foreground mt-1">Create your first contact to get started</p>
-//             </div>
-//           ) : (
-//             <div className="h-[600px] overflow-y-auto border border-border rounded-lg">
-//               <Table>
-//                 <TableHeader className="sticky top-0 bg-muted/50 z-10">
-//                   <TableRow className="border-b border-border hover:bg-transparent">
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-28">First Name</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Last Name</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-32">Email</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-24">Phone</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Title</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-24">Email Type</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Department</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-32">Agency</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Created</TableHead>
-//                     <TableHead className="px-4 py-3 font-semibold text-foreground w-28">Updated</TableHead>
-//                   </TableRow>
-//                 </TableHeader>
-//                 <TableBody>
-//                   {contacts.map((contact) => (
-//                     <TableRow key={contact.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-//                       <TableCell className="px-4 py-3 font-medium text-foreground">
-//                         {contact.first_name || "—"}
-//                       </TableCell>
-//                       <TableCell className="px-4 py-3 font-medium text-foreground">
-//                         {contact.last_name || "—"}
-//                       </TableCell>
-//                       <TableCell className="px-4 py-3 text-sm">
-//                         {contact.email ? (
-//                           <a
-//                             href={`mailto:${contact.email}`}
-//                             className="text-primary hover:underline flex items-center gap-2"
-//                           >
-//                             <Mail className="w-4 h-4" />
-//                             {contact.email}
-//                           </a>
-//                         ) : (
-//                           <span className="text-muted-foreground">—</span>
-//                         )}
-//                       </TableCell>
-//                       <TableCell className="px-4 py-3 text-sm">
-//                         {contact.phone ? (
-//                           <a
-//                             href={`tel:${contact.phone}`}
-//                             className="text-primary hover:underline flex items-center gap-2"
-//                           >
-//                             <Phone className="w-4 h-4" />
-//                             {contact.phone}
-//                           </a>
-//                         ) : (
-//                           <span className="text-muted-foreground">—</span>
-//                         )}
-//                       </TableCell>
-//                       <TableCell className="px-4 py-3 text-sm text-foreground">{contact.title || "—"}</TableCell>
-//                       <TableCell className="px-4 py-3">
-//                         {contact.email_type ? (
-//                           <Badge variant="secondary" className="text-xs">
-//                             {contact.email_type}
-//                           </Badge>
-//                         ) : (
-//                           <span className="text-sm text-muted-foreground">—</span>
-//                         )}
-//                       </TableCell>
-//                       <TableCell className="px-4 py-3 text-sm text-foreground">{contact.department || "—"}</TableCell>
-//                       <TableCell className="px-4 py-3">
-//                         {contact.agency ? (
-//                           <Badge variant="outline" className="text-xs">
-//                             {contact.agency.name || "—"}
-//                           </Badge>
-//                         ) : (
-//                           <span className="text-sm text-muted-foreground">—</span>
-//                         )}
-//                       </TableCell>
-//                       <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-//                         {contact.created_at ? formatDate(contact.created_at) : "—"}
-//                       </TableCell>
-//                       <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-//                         {contact.updated_at ? formatDate(contact.updated_at) : "—"}
-//                       </TableCell>
-//                     </TableRow>
-//                   ))}
-//                 </TableBody>
-//               </Table>
-//             </div>
-//           )}
-//         </CardContent>
-//       </Card>
-//     </div>
-//   )
-// }
-
-
-

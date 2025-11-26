@@ -1,24 +1,83 @@
-import { prisma } from "../../../lib/prisma"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+"use client"
+
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Building2, MapPin } from "lucide-react"
+import { Building2, MapPin, Loader2 } from "lucide-react"
 import { formatDate } from "../../../lib/utils"
 
-export default async function AgenciesPage() {
-  const agencies = await prisma.agency.findMany({
-    orderBy: {
-      created_at: "desc",
-    },
-  })
+export default function AgenciesPage() {
+  const [agencies, setAgencies] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    loadAgencies(1)
+  }, [])
+
+  const loadAgencies = async (pageNumber: number) => {
+    try {
+      const res = await fetch(`/api/agencies?page=${pageNumber}`)
+      const data = await res.json()
+
+      if (pageNumber === 1) {
+        setAgencies(data.agencies || [])
+      } else {
+        setAgencies((prev) => [...prev, ...(data.agencies || [])])
+      }
+
+      setHasMore(data.hasMore)
+      setLoading(false)
+    } catch (error) {
+      console.error("Failed to load agencies:", error)
+      setLoading(false)
+    }
+  }
+
+  const handleScroll = useCallback(async () => {
+    if (!scrollRef.current || loadingMore || !hasMore) return
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+    const nearBottom = scrollHeight - scrollTop - clientHeight < 80
+
+    if (nearBottom) {
+      setLoadingMore(true)
+      const nextPage = page + 1
+
+      try {
+        const res = await fetch(`/api/agencies?page=${nextPage}`)
+        const data = await res.json()
+
+        setAgencies((prev) => [...prev, ...(data.agencies || [])])
+        setPage(nextPage)
+        setHasMore(data.hasMore)
+      } catch (error) {
+        console.error("Failed to load more agencies:", error)
+      } finally {
+        setLoadingMore(false)
+      }
+    }
+  }, [page, loadingMore, hasMore])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-muted-foreground">Loading agencies...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-          <div>
-            <p className="text-muted-foreground text-sm mt-1">Manage and view all agencies in your system</p>
-          </div>
-      {/* Table Card with Fixed Height and Internal Scroll */}
+      <div>
+        <p className="text-muted-foreground text-sm mt-1">Manage and view all agencies in your system</p>
+      </div>
+
       <Card className="border border-border">
         <CardContent>
           {agencies.length === 0 ? (
@@ -28,7 +87,11 @@ export default async function AgenciesPage() {
               <p className="text-sm text-muted-foreground mt-1">Create your first agency to get started</p>
             </div>
           ) : (
-            <div className="h-[550px] overflow-y-auto border border-border rounded-lg">
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="h-96 overflow-y-auto border border-border rounded-lg"
+            >
               <Table>
                 <TableHeader className="sticky top-0 bg-muted/50 z-10">
                   <TableRow className="border-b border-border hover:bg-transparent">
@@ -95,6 +158,19 @@ export default async function AgenciesPage() {
                   ))}
                 </TableBody>
               </Table>
+
+              {loadingMore && (
+                <div className="flex items-center justify-center py-4 border-t">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading more…</span>
+                </div>
+              )}
+
+              {!hasMore && agencies.length > 0 && (
+                <div className="flex items-center justify-center py-4 border-t">
+                  <p className="text-sm text-muted-foreground">No more agencies to load</p>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
