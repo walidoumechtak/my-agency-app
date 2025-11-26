@@ -15,43 +15,23 @@ export default async function AgenciesPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div>
-        <div className="flex items-center gap-3 mb-2">
-          {/* <div className="p-2 bg-primary/10 rounded-lg">
-            <Building2 className="w-6 h-6 text-primary" />
-          </div> */}
           <div>
-            {/* <h1 className="text-3xl font-bold text-foreground">Agencies</h1> */}
             <p className="text-muted-foreground text-sm mt-1">Manage and view all agencies in your system</p>
           </div>
-        </div>
-      </div>
-
       {/* Table Card with Fixed Height and Internal Scroll */}
       <Card className="border border-border">
-        {/* <CardHeader> */}
-          {/* <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Agency Directory</CardTitle> 
-              <CardDescription>
-                {agencies.length} {agencies.length === 1 ? "agency" : "agencies"} total
-              </CardDescription>
-            </div>
-          </div> */}
-        {/* </CardHeader> */}
         <CardContent>
           {agencies.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="flex flex-col items-center justify-center py-8 text-center">
               <Building2 className="w-12 h-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground font-medium">No agencies found</p>
               <p className="text-sm text-muted-foreground mt-1">Create your first agency to get started</p>
             </div>
           ) : (
-            <div className="h-[600px] overflow-y-auto border border-border rounded-lg">
+            <div className="h-[550px] overflow-y-auto border border-border rounded-lg">
               <Table>
                 <TableHeader className="sticky top-0 bg-muted/50 z-10">
                   <TableRow className="border-b border-border hover:bg-transparent">
-                    <TableHead className="px-4 py-3 font-semibold text-foreground w-24">ID</TableHead>
                     <TableHead className="px-4 py-3 font-semibold text-foreground w-32">Name</TableHead>
                     <TableHead className="px-4 py-3 font-semibold text-foreground w-28">State</TableHead>
                     <TableHead className="px-4 py-3 font-semibold text-foreground w-20">Code</TableHead>
@@ -66,9 +46,6 @@ export default async function AgenciesPage() {
                 <TableBody>
                   {agencies.map((agency) => (
                     <TableRow key={agency.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                      <TableCell className="px-4 py-3 text-xs text-muted-foreground font-mono">
-                        {agency.id.slice(0, 8)}...
-                      </TableCell>
                       <TableCell className="px-4 py-3 font-medium text-foreground">{agency.name || "—"}</TableCell>
                       <TableCell className="px-4 py-3">
                         <div className="flex items-center gap-2">
