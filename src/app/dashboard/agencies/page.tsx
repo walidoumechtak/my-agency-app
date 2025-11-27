@@ -36,6 +36,8 @@ export default function AgenciesPage() {
         })
       }
 
+      // for new commit
+
       setHasMore(data.hasMore || false)
       setLoading(false)
     } catch (error) {
