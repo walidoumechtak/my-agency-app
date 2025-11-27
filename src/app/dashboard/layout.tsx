@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { SignOutButton } from "@clerk/nextjs"
+import { SignOutButton, UserButton } from "@clerk/nextjs"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { LayoutDashboard, Users, LogOut, ChevronRight, Menu, X, User } from "lucide-react"
@@ -119,6 +119,9 @@ export default  function DashboardLayout({ children }: { children: React.ReactNo
             <div className="ml-12 lg:ml-0">
               <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
               <p className="text-sm text-muted-foreground mt-2">Manage your agencies and contacts</p>
+            </div>
+            <div>
+              <UserButton />
             </div>
           </div>
         </header>
