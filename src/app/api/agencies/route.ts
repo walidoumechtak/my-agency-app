@@ -24,12 +24,12 @@ export async function GET(req: Request) {
 
     const total = await prisma.agency.count()
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       agencies,
       total,
       page,
       pageSize,
-      hasMore: skip + pageSize < total
+      hasMore: skip + pageSize < total,
     })
   } catch (error) {
     console.error("Failed to fetch agencies:", error)

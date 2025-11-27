@@ -1,34 +1,81 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Building2, MapPin, Search } from "lucide-react"
+import { Building2, MapPin, Search, Loader2 } from "lucide-react"
 import { formatDate } from "../../../lib/utils"
 
 export default function AgenciesPage() {
   const [agencies, setAgencies] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState("")
+  const [hasMore, setHasMore] = useState(true)
+
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const loadAgencies = async () => {
-      try {
-        const res = await fetch("/api/agencies")
-        const data = await res.json()
-        setAgencies(data.agencies || [])
-      } catch (error) {
-        console.error("Failed to load agencies:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadAgencies()
+    loadAgencies(1)
   }, [])
 
-  const filteredAgencies = agencies.filter((agency) => agency.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+  const loadAgencies = async (pageNumber: number) => {
+    try {
+      const res = await fetch(`/api/agencies?page=${pageNumber}`)
+      const data = await res.json()
+
+      if (pageNumber === 1) {
+        setAgencies(data.agencies || [])
+      } else {
+        setAgencies((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id))
+          const newAgencies = (data.agencies || []).filter((a) => !existingIds.has(a.id))
+          return [...prev, ...newAgencies]
+        })
+      }
+
+      setHasMore(data.hasMore || false)
+      setLoading(false)
+    } catch (error) {
+      console.error("Failed to load agencies:", error)
+      setLoading(false)
+    }
+  }
+
+  const handleScroll = useCallback(async () => {
+    if (!scrollRef.current || loadingMore || !hasMore) return
+
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+    const nearBottom = scrollHeight - scrollTop - clientHeight < 80
+
+    if (nearBottom) {
+      setLoadingMore(true)
+      const nextPage = page + 1
+
+      try {
+        const res = await fetch(`/api/agencies?page=${nextPage}`)
+        const data = await res.json()
+
+        setAgencies((prev) => {
+          const existingIds = new Set(prev.map((a) => a.id))
+          const newAgencies = (data.agencies || []).filter((a) => !existingIds.has(a.id))
+          return [...prev, ...newAgencies]
+        })
+        setPage(nextPage)
+        setHasMore(data.hasMore || false)
+      } catch (error) {
+        console.error("Failed to load more agencies:", error)
+      } finally {
+        setLoadingMore(false)
+      }
+    }
+  }, [page, loadingMore, hasMore])
+
+  const filteredAgencies = agencies.filter((agency) =>
+    agency.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   if (loading) {
     return (
@@ -42,7 +89,7 @@ export default function AgenciesPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-            <p className="text-muted-foreground text-sm mt-1">Manage and view all agencies in your system</p>
+        <p className="text-muted-foreground text-sm mt-1">Manage and view all agencies in your system</p>
       </div>
 
       {/* Table Card with Fixed Height and Internal Scroll */}
@@ -74,7 +121,11 @@ export default function AgenciesPage() {
               <p className="text-xs text-muted-foreground mt-1">Try a different search term</p>
             </div>
           ) : (
-            <div className="h-96 overflow-y-auto border border-border rounded-lg">
+            <div
+              ref={scrollRef}
+              onScroll={handleScroll}
+              className="h-96 overflow-y-auto border border-border rounded-lg"
+            >
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader className="sticky top-0 bg-muted/50 z-10">
@@ -153,6 +204,13 @@ export default function AgenciesPage() {
                   </TableBody>
                 </Table>
               </div>
+
+              {loadingMore && (
+                <div className="flex items-center justify-center py-3 md:py-4 border-t">
+                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin text-primary" />
+                  <span className="ml-2 text-xs md:text-sm text-muted-foreground">Loading more…</span>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
