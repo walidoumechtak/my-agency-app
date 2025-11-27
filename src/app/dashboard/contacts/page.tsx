@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Users, Mail, Phone, AlertCircle, Loader2 } from "lucide-react"
+import { Users, Mail, Phone, AlertCircle, Loader2, Search } from "lucide-react"
 import { formatDate } from "../../../lib/utils"
 
 export default function ContactsPage() {
@@ -13,6 +13,7 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [page, setPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -72,6 +73,14 @@ export default function ContactsPage() {
     }
   }, [page, blocked, loadingMore])
 
+  const filteredContacts = contacts.filter((contact) => {
+    if (!searchQuery) return true
+    const query = searchQuery.toLowerCase()
+    const firstName = (contact.first_name || "").toLowerCase()
+    const lastName = (contact.last_name || "").toLowerCase()
+    return firstName.includes(query) || lastName.includes(query)
+  })
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -107,18 +116,34 @@ export default function ContactsPage() {
       </p>
 
       <Card className="border">
-        <CardContent className="p-3 md:p-6 pt-3 md:pt-0">
+        <CardContent className="space-y-4">
+            {/* Search Input */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border border-border rounded-lg focus-within:border-primary focus-within:bg-background transition-colors w-full md:w-80">
+            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              placeholder="Search contacts by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
+            />
+          </div>
+          
           <div
             ref={scrollRef}
             onScroll={handleScroll}
             className="h-64 md:h-96 overflow-y-auto border rounded-lg"
           >
-            {contacts.length === 0 ? (
+            {filteredContacts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 md:py-12 text-center">
                 <Users className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground/50 mb-4" />
-                <p className="text-muted-foreground font-medium text-sm md:text-base">No contacts found</p>
+                <p className="text-muted-foreground font-medium text-sm md:text-base">
+                  {contacts.length === 0 ? "No contacts found" : "No matching contacts"}
+                </p>
                 <p className="text-xs md:text-sm text-muted-foreground mt-1">
-                  Create your first contact to get started
+                  {contacts.length === 0 
+                    ? "Create your first contact to get started"
+                    : "Try a different search term"}
                 </p>
               </div>
             ) : (
@@ -161,7 +186,7 @@ export default function ContactsPage() {
                     </TableHeader>
 
                     <TableBody>
-                      {contacts.map((c) => (
+                      {filteredContacts.map((c) => (
                         <TableRow
                           key={c.id}
                           className="border-b hover:bg-muted/30 transition"
