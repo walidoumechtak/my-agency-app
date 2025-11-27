@@ -8,7 +8,7 @@ import { Building2, MapPin, Search, Loader2 } from "lucide-react"
 import { formatDate } from "../../../lib/utils"
 
 export default function AgenciesPage() {
-  const [agencies, setAgencies] = useState<any[]>([])
+  const [agencies, setAgencies] = useState<Array<{ id: string; [key: string]: any }>>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [page, setPage] = useState(1)
@@ -30,13 +30,11 @@ export default function AgenciesPage() {
         setAgencies(data.agencies || [])
       } else {
         setAgencies((prev) => {
-          const existingIds = new Set(prev.map((a) => a.id))
-          const newAgencies = (data.agencies || []).filter((a: { id: any }) => !existingIds.has(a.id))
+          const existingIds = new Set(prev.map((a: any) => a.id))
+          const newAgencies = (data.agencies || []).filter((a: any) => !existingIds.has(a.id))
           return [...prev, ...newAgencies]
         })
       }
-
-      // for new commit
 
       setHasMore(data.hasMore || false)
       setLoading(false)
@@ -61,8 +59,8 @@ export default function AgenciesPage() {
         const data = await res.json()
 
         setAgencies((prev) => {
-          const existingIds = new Set(prev.map((a) => a.id))
-          const newAgencies = (data.agencies || []).filter((a) => !existingIds.has(a.id))
+          const existingIds = new Set(prev.map((a: any) => a.id))
+          const newAgencies = (data.agencies || []).filter((a: any) => !existingIds.has(a.id))
           return [...prev, ...newAgencies]
         })
         setPage(nextPage)
