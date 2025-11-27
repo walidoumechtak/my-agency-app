@@ -31,7 +31,7 @@ export default function AgenciesPage() {
       } else {
         setAgencies((prev) => {
           const existingIds = new Set(prev.map((a) => a.id))
-          const newAgencies = (data.agencies || []).filter((a) => !existingIds.has(a.id))
+          const newAgencies = (data.agencies || []).filter((a: { id: any }) => !existingIds.has(a.id))
           return [...prev, ...newAgencies]
         })
       }
