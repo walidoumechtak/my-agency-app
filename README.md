@@ -1,6 +1,6 @@
 # AgencyHub System Design Documentation
 
-![System Diagram](/public/diagram.png)
+![System Diagram](/public/Screenshot 2025-11-28 113754.png)
 
 
 ## Overview
