@@ -1,5 +1,8 @@
 # AgencyHub System Design Documentation
 
+![System Diagram](/public/flowchart.png)
+
+
 ## Overview
 AgencyHub is a modern B2B agency management platform that enables users to manage agencies and their associated contacts with real-time search and pagination features.
 
